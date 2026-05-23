@@ -1,0 +1,6 @@
+/zinc
+/dist/
+*.test
+coverage.txt
+coverage.html
+.DS_Store
