@@ -3,6 +3,7 @@ package ui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // Model is the root Bubble Tea model for the application.
@@ -38,5 +39,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	return "zinc — git TUI\n\npress q to quit\n"
+	title := titleStyle.Render("zinc")
+	body := panelFocusedStyle.
+		Width(max(m.width-2, 0)).
+		Height(max(m.height-6, 0)).
+		Render("git TUI — press q to quit")
+	help := statusBarStyle.Render(keyStyle.Render("q") + " " + helpDescStyle.Render("quit"))
+
+	return lipgloss.JoinVertical(lipgloss.Left, title, body, help)
 }
