@@ -12,9 +12,8 @@ import (
 // StatusPanel renders the working tree file list: staged, unstaged,
 // unmerged, and untracked paths.
 type StatusPanel struct {
-	files   []git.FileStatus
-	cursor  int
-	focused bool
+	files  []git.FileStatus
+	cursor int
 }
 
 // NewStatusPanel constructs an empty StatusPanel.
@@ -28,11 +27,6 @@ func (p *StatusPanel) SetFiles(files []git.FileStatus) {
 	if p.cursor >= len(files) {
 		p.cursor = max(len(files)-1, 0)
 	}
-}
-
-// SetFocused marks whether the panel currently has input focus.
-func (p *StatusPanel) SetFocused(focused bool) {
-	p.focused = focused
 }
 
 // Selected returns the file under the cursor, if any.
@@ -58,9 +52,9 @@ func (p *StatusPanel) CursorDown() {
 }
 
 // View renders the panel at the given size.
-func (p StatusPanel) View(width, height int) string {
+func (p StatusPanel) View(width, height int, focused bool) string {
 	style := panelStyle
-	if p.focused {
+	if focused {
 		style = panelFocusedStyle
 	}
 

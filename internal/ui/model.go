@@ -10,6 +10,17 @@ import (
 	"github.com/jamesjohnsdev/zinc/internal/git"
 )
 
+// focusIndex identifies which of the sidebar panels currently has focus.
+type focusIndex int
+
+const (
+	focusFiles focusIndex = iota
+	focusBranches
+	focusCommits
+	focusStash
+	numPanels
+)
+
 // Model is the root Bubble Tea model for the application.
 type Model struct {
 	repo *git.Runner
@@ -17,7 +28,13 @@ type Model struct {
 	width  int
 	height int
 
-	status StatusPanel
+	focus focusIndex
+
+	status   StatusPanel
+	branches placeholderPanel
+	commits  placeholderPanel
+	stash    placeholderPanel
+	main     placeholderPanel
 
 	err error
 }
@@ -26,8 +43,12 @@ type Model struct {
 // repository containing the current working directory.
 func NewModel() Model {
 	return Model{
-		repo:   git.New("."),
-		status: NewStatusPanel(),
+		repo:     git.New("."),
+		status:   NewStatusPanel(),
+		branches: placeholderPanel{title: "Branches", note: "not yet implemented"},
+		commits:  placeholderPanel{title: "Commits", note: "not yet implemented"},
+		stash:    placeholderPanel{title: "Stash", note: "not yet implemented"},
+		main:     placeholderPanel{title: "Diff", note: "select a file to see its diff"},
 	}
 }
 
@@ -53,10 +74,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "tab":
+			m.focus = (m.focus + 1) % numPanels
+		case "shift+tab":
+			m.focus = (m.focus - 1 + numPanels) % numPanels
 		case "up", "k":
-			m.status.CursorUp()
+			if m.focus == focusFiles {
+				m.status.CursorUp()
+			}
 		case "down", "j":
-			m.status.CursorDown()
+			if m.focus == focusFiles {
+				m.status.CursorDown()
+			}
 		case "r":
 			return m, m.loadStatus
 		}
@@ -66,25 +95,42 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	m.status.SetFocused(true)
-
 	title := titleStyle.Render("zinc")
 
 	bodyWidth := max(m.width-2, 0)
 	bodyHeight := max(m.height-6, 0)
 
-	var body string
+	sidebarWidth := bodyWidth / 3
+	mainWidth := max(bodyWidth-sidebarWidth, 0)
+
+	panelHeight := bodyHeight / int(numPanels)
+	lastPanelHeight := bodyHeight - panelHeight*(int(numPanels)-1)
+
+	var filesView string
 	if m.err != nil {
-		body = panelFocusedStyle.
-			Width(bodyWidth).
-			Height(bodyHeight).
+		filesView = panelFocusedStyle.
+			Width(sidebarWidth).
+			Height(panelHeight).
 			Render("error: " + m.err.Error())
 	} else {
-		body = m.status.View(bodyWidth, bodyHeight)
+		filesView = m.status.View(sidebarWidth, panelHeight, m.focus == focusFiles)
 	}
 
+	sidebar := lipgloss.JoinVertical(
+		lipgloss.Left,
+		filesView,
+		m.branches.View(sidebarWidth, panelHeight, m.focus == focusBranches),
+		m.commits.View(sidebarWidth, panelHeight, m.focus == focusCommits),
+		m.stash.View(sidebarWidth, lastPanelHeight, m.focus == focusStash),
+	)
+
+	mainPanel := m.main.View(mainWidth, bodyHeight, false)
+
+	body := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, mainPanel)
+
 	help := statusBarStyle.Render(
-		keyStyle.Render("↑/↓") + " " + helpDescStyle.Render("navigate") + "  " +
+		keyStyle.Render("tab") + " " + helpDescStyle.Render("switch panel") + "  " +
+			keyStyle.Render("↑/↓") + " " + helpDescStyle.Render("navigate") + "  " +
 			keyStyle.Render("r") + " " + helpDescStyle.Render("refresh") + "  " +
 			keyStyle.Render("q") + " " + helpDescStyle.Render("quit"),
 	)
