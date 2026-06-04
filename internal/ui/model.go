@@ -88,6 +88,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "r":
 			return m, m.loadStatus
+		case " ":
+			if m.focus == focusFiles {
+				return m, m.toggleStaged
+			}
+		case "a":
+			if m.focus == focusFiles {
+				return m, m.stageAll
+			}
 		}
 	}
 
@@ -131,6 +139,8 @@ func (m Model) View() string {
 	help := statusBarStyle.Render(
 		keyStyle.Render("tab") + " " + helpDescStyle.Render("switch panel") + "  " +
 			keyStyle.Render("↑/↓") + " " + helpDescStyle.Render("navigate") + "  " +
+			keyStyle.Render("space") + " " + helpDescStyle.Render("stage/unstage") + "  " +
+			keyStyle.Render("a") + " " + helpDescStyle.Render("stage all") + "  " +
 			keyStyle.Render("r") + " " + helpDescStyle.Render("refresh") + "  " +
 			keyStyle.Render("q") + " " + helpDescStyle.Render("quit"),
 	)
@@ -146,5 +156,39 @@ type statusLoadedMsg struct {
 
 func (m Model) loadStatus() tea.Msg {
 	files, err := m.repo.Status(context.Background())
+	return statusLoadedMsg{files: files, err: err}
+}
+
+// toggleStaged stages the selected unstaged/untracked file, or unstages it
+// if it already has staged content.
+func (m Model) toggleStaged() tea.Msg {
+	f, ok := m.status.Selected()
+	if !ok {
+		return statusLoadedMsg{}
+	}
+
+	ctx := context.Background()
+
+	var err error
+	if f.Staged != '.' && f.Staged != '?' {
+		err = m.repo.Unstage(ctx, f.Path)
+	} else {
+		err = m.repo.Stage(ctx, f.Path)
+	}
+	if err != nil {
+		return statusLoadedMsg{err: err}
+	}
+
+	files, err := m.repo.Status(ctx)
+	return statusLoadedMsg{files: files, err: err}
+}
+
+func (m Model) stageAll() tea.Msg {
+	ctx := context.Background()
+	if err := m.repo.StageAll(ctx); err != nil {
+		return statusLoadedMsg{err: err}
+	}
+
+	files, err := m.repo.Status(ctx)
 	return statusLoadedMsg{files: files, err: err}
 }
