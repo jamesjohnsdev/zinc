@@ -34,7 +34,7 @@ type Model struct {
 	branches placeholderPanel
 	commits  placeholderPanel
 	stash    placeholderPanel
-	main     placeholderPanel
+	main     DiffPanel
 
 	err error
 }
@@ -48,7 +48,7 @@ func NewModel() Model {
 		branches: placeholderPanel{title: "Branches", note: "not yet implemented"},
 		commits:  placeholderPanel{title: "Commits", note: "not yet implemented"},
 		stash:    placeholderPanel{title: "Stash", note: "not yet implemented"},
-		main:     placeholderPanel{title: "Diff", note: "select a file to see its diff"},
+		main:     NewDiffPanel(),
 	}
 }
 
@@ -68,6 +68,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			m.status.SetFiles(msg.files)
 		}
+		return m, m.loadDiff
+
+	case diffLoadedMsg:
+		content := msg.content
+		if msg.err != nil {
+			content = "error: " + msg.err.Error()
+		}
+		m.main.SetContent(msg.title, content)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -81,11 +89,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "k":
 			if m.focus == focusFiles {
 				m.status.CursorUp()
+				return m, m.loadDiff
 			}
 		case "down", "j":
 			if m.focus == focusFiles {
 				m.status.CursorDown()
+				return m, m.loadDiff
 			}
+		case "ctrl+u":
+			m.main.PageUp()
+		case "ctrl+d":
+			m.main.PageDown()
 		case "r":
 			return m, m.loadStatus
 		case " ":
@@ -141,6 +155,7 @@ func (m Model) View() string {
 			keyStyle.Render("↑/↓") + " " + helpDescStyle.Render("navigate") + "  " +
 			keyStyle.Render("space") + " " + helpDescStyle.Render("stage/unstage") + "  " +
 			keyStyle.Render("a") + " " + helpDescStyle.Render("stage all") + "  " +
+			keyStyle.Render("^u/^d") + " " + helpDescStyle.Render("scroll diff") + "  " +
 			keyStyle.Render("r") + " " + helpDescStyle.Render("refresh") + "  " +
 			keyStyle.Render("q") + " " + helpDescStyle.Render("quit"),
 	)
@@ -191,4 +206,34 @@ func (m Model) stageAll() tea.Msg {
 
 	files, err := m.repo.Status(ctx)
 	return statusLoadedMsg{files: files, err: err}
+}
+
+// diffLoadedMsg reports the result of loading the diff for the currently
+// selected file.
+type diffLoadedMsg struct {
+	title   string
+	content string
+	err     error
+}
+
+func (m Model) loadDiff() tea.Msg {
+	f, ok := m.status.Selected()
+	if !ok {
+		return diffLoadedMsg{title: "Diff"}
+	}
+
+	ctx := context.Background()
+
+	var (
+		content string
+		err     error
+	)
+	if f.Untracked {
+		content, err = m.repo.DiffUntracked(ctx, f.Path)
+	} else {
+		staged := f.Staged != '.' && f.Staged != '?'
+		content, err = m.repo.Diff(ctx, f.Path, staged)
+	}
+
+	return diffLoadedMsg{title: "Diff: " + f.Path, content: content, err: err}
 }
