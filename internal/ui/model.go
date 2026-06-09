@@ -3,7 +3,9 @@ package ui
 
 import (
 	"context"
+	"strings"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -36,6 +38,8 @@ type Model struct {
 	stash    placeholderPanel
 	main     DiffPanel
 
+	commitInput CommitInput
+
 	err error
 }
 
@@ -49,6 +53,8 @@ func NewModel() Model {
 		commits:  placeholderPanel{title: "Commits", note: "not yet implemented"},
 		stash:    placeholderPanel{title: "Stash", note: "not yet implemented"},
 		main:     NewDiffPanel(),
+
+		commitInput: NewCommitInput(),
 	}
 }
 
@@ -79,6 +85,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.commitInput.Active() {
+			switch msg.String() {
+			case "esc":
+				m.commitInput.Close()
+				return m, nil
+			case "enter":
+				message := strings.TrimSpace(m.commitInput.Value())
+				m.commitInput.Close()
+				if message == "" {
+					return m, nil
+				}
+				return m, m.commitCmd(message)
+			default:
+				cmd := m.commitInput.Update(msg)
+				return m, cmd
+			}
+		}
+
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
@@ -109,6 +133,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "a":
 			if m.focus == focusFiles {
 				return m, m.stageAll
+			}
+		case "c":
+			if m.focus == focusFiles {
+				m.commitInput.Open()
+				return m, textinput.Blink
 			}
 		}
 	}
@@ -155,12 +184,19 @@ func (m Model) View() string {
 			keyStyle.Render("↑/↓") + " " + helpDescStyle.Render("navigate") + "  " +
 			keyStyle.Render("space") + " " + helpDescStyle.Render("stage/unstage") + "  " +
 			keyStyle.Render("a") + " " + helpDescStyle.Render("stage all") + "  " +
+			keyStyle.Render("c") + " " + helpDescStyle.Render("commit") + "  " +
 			keyStyle.Render("^u/^d") + " " + helpDescStyle.Render("scroll diff") + "  " +
 			keyStyle.Render("r") + " " + helpDescStyle.Render("refresh") + "  " +
 			keyStyle.Render("q") + " " + helpDescStyle.Render("quit"),
 	)
 
-	return lipgloss.JoinVertical(lipgloss.Left, title, body, help)
+	parts := []string{title}
+	if m.commitInput.Active() {
+		parts = append(parts, m.commitInput.View(bodyWidth))
+	}
+	parts = append(parts, body, help)
+
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }
 
 // statusLoadedMsg reports the result of refreshing the working tree status.
@@ -236,4 +272,18 @@ func (m Model) loadDiff() tea.Msg {
 	}
 
 	return diffLoadedMsg{title: "Diff: " + f.Path, content: content, err: err}
+}
+
+// commitCmd commits the currently staged changes with message and refreshes
+// the working tree status.
+func (m Model) commitCmd(message string) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		if err := m.repo.Commit(ctx, message); err != nil {
+			return statusLoadedMsg{err: err}
+		}
+
+		files, err := m.repo.Status(ctx)
+		return statusLoadedMsg{files: files, err: err}
+	}
 }
