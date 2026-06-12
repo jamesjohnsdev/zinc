@@ -33,7 +33,7 @@ type Model struct {
 	focus focusIndex
 
 	status   StatusPanel
-	branches placeholderPanel
+	branches BranchesPanel
 	commits  placeholderPanel
 	stash    placeholderPanel
 	main     DiffPanel
@@ -49,7 +49,7 @@ func NewModel() Model {
 	return Model{
 		repo:     git.New("."),
 		status:   NewStatusPanel(),
-		branches: placeholderPanel{title: "Branches", note: "not yet implemented"},
+		branches: NewBranchesPanel(),
 		commits:  placeholderPanel{title: "Commits", note: "not yet implemented"},
 		stash:    placeholderPanel{title: "Stash", note: "not yet implemented"},
 		main:     NewDiffPanel(),
@@ -59,7 +59,7 @@ func NewModel() Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return m.loadStatus
+	return tea.Batch(m.loadStatus, m.loadBranches)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -75,6 +75,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status.SetFiles(msg.files)
 		}
 		return m, m.loadDiff
+
+	case branchesLoadedMsg:
+		if msg.err == nil {
+			m.branches.SetBranches(msg.branches)
+		} else {
+			m.err = msg.err
+		}
+		return m, nil
 
 	case diffLoadedMsg:
 		content := msg.content
@@ -111,21 +119,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "shift+tab":
 			m.focus = (m.focus - 1 + numPanels) % numPanels
 		case "up", "k":
-			if m.focus == focusFiles {
+			switch m.focus {
+			case focusFiles:
 				m.status.CursorUp()
 				return m, m.loadDiff
+			case focusBranches:
+				m.branches.CursorUp()
 			}
 		case "down", "j":
-			if m.focus == focusFiles {
+			switch m.focus {
+			case focusFiles:
 				m.status.CursorDown()
 				return m, m.loadDiff
+			case focusBranches:
+				m.branches.CursorDown()
 			}
 		case "ctrl+u":
 			m.main.PageUp()
 		case "ctrl+d":
 			m.main.PageDown()
 		case "r":
-			return m, m.loadStatus
+			return m, tea.Batch(m.loadStatus, m.loadBranches)
 		case " ":
 			if m.focus == focusFiles {
 				return m, m.toggleStaged
@@ -242,6 +256,28 @@ func (m Model) stageAll() tea.Msg {
 
 	files, err := m.repo.Status(ctx)
 	return statusLoadedMsg{files: files, err: err}
+}
+
+// branchesLoadedMsg reports the result of refreshing the branch list.
+type branchesLoadedMsg struct {
+	branches []git.Branch
+	err      error
+}
+
+func (m Model) loadBranches() tea.Msg {
+	ctx := context.Background()
+
+	local, err := m.repo.Branches(ctx)
+	if err != nil {
+		return branchesLoadedMsg{err: err}
+	}
+
+	remote, err := m.repo.RemoteBranches(ctx)
+	if err != nil {
+		return branchesLoadedMsg{err: err}
+	}
+
+	return branchesLoadedMsg{branches: append(local, remote...)}
 }
 
 // diffLoadedMsg reports the result of loading the diff for the currently
