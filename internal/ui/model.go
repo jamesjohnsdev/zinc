@@ -39,6 +39,11 @@ type Model struct {
 	main     DiffPanel
 
 	commitInput CommitInput
+	branchInput BranchInput
+	confirm     ConfirmDialog
+
+	// pendingConfirm runs when the open confirm dialog is accepted with 'y'.
+	pendingConfirm tea.Cmd
 
 	err error
 }
@@ -55,6 +60,8 @@ func NewModel() Model {
 		main:     NewDiffPanel(),
 
 		commitInput: NewCommitInput(),
+		branchInput: NewBranchInput(),
+		confirm:     NewConfirmDialog(),
 	}
 }
 
@@ -92,7 +99,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.main.SetContent(msg.title, content)
 		return m, nil
 
+	case refreshMsg:
+		m.err = msg.err
+		return m, tea.Batch(m.loadStatus, m.loadBranches, m.loadDiff)
+
 	case tea.KeyMsg:
+		if m.branchInput.Active() {
+			switch msg.String() {
+			case "esc":
+				m.branchInput.Close()
+				return m, nil
+			case "enter":
+				name := strings.TrimSpace(m.branchInput.Value())
+				m.branchInput.Close()
+				if name == "" {
+					return m, nil
+				}
+				return m, m.createBranchCmd(name)
+			default:
+				cmd := m.branchInput.Update(msg)
+				return m, cmd
+			}
+		}
+
+		if m.confirm.Active() {
+			switch msg.String() {
+			case "y":
+				cmd := m.pendingConfirm
+				m.confirm.Close()
+				m.pendingConfirm = nil
+				return m, cmd
+			case "n", "esc":
+				m.confirm.Close()
+				m.pendingConfirm = nil
+			}
+			return m, nil
+		}
+
 		if m.commitInput.Active() {
 			switch msg.String() {
 			case "esc":
@@ -153,6 +196,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.commitInput.Open()
 				return m, textinput.Blink
 			}
+		case "enter":
+			if m.focus == focusBranches {
+				if b, ok := m.branches.Selected(); ok {
+					return m, m.checkoutCmd(b)
+				}
+			}
+		case "n":
+			if m.focus == focusBranches {
+				m.branchInput.Open()
+				return m, textinput.Blink
+			}
+		case "d":
+			if m.focus == focusBranches {
+				if b, ok := m.branches.Selected(); ok && !b.Remote && !b.Current {
+					m.confirm.Open("Delete branch '" + b.Name + "'?")
+					m.pendingConfirm = m.deleteBranchCmd(b.Name)
+				}
+			}
 		}
 	}
 
@@ -199,14 +260,22 @@ func (m Model) View() string {
 			keyStyle.Render("space") + " " + helpDescStyle.Render("stage/unstage") + "  " +
 			keyStyle.Render("a") + " " + helpDescStyle.Render("stage all") + "  " +
 			keyStyle.Render("c") + " " + helpDescStyle.Render("commit") + "  " +
+			keyStyle.Render("enter") + " " + helpDescStyle.Render("checkout branch") + "  " +
+			keyStyle.Render("n") + " " + helpDescStyle.Render("new branch") + "  " +
+			keyStyle.Render("d") + " " + helpDescStyle.Render("delete branch") + "  " +
 			keyStyle.Render("^u/^d") + " " + helpDescStyle.Render("scroll diff") + "  " +
 			keyStyle.Render("r") + " " + helpDescStyle.Render("refresh") + "  " +
 			keyStyle.Render("q") + " " + helpDescStyle.Render("quit"),
 	)
 
 	parts := []string{title}
-	if m.commitInput.Active() {
+	switch {
+	case m.commitInput.Active():
 		parts = append(parts, m.commitInput.View(bodyWidth))
+	case m.branchInput.Active():
+		parts = append(parts, m.branchInput.View(bodyWidth))
+	case m.confirm.Active():
+		parts = append(parts, m.confirm.View(bodyWidth))
 	}
 	parts = append(parts, body, help)
 
@@ -321,5 +390,44 @@ func (m Model) commitCmd(message string) tea.Cmd {
 
 		files, err := m.repo.Status(ctx)
 		return statusLoadedMsg{files: files, err: err}
+	}
+}
+
+// refreshMsg reports that a branch action completed and every panel should
+// reload its data.
+type refreshMsg struct {
+	err error
+}
+
+// checkoutCmd checks out a local branch, or creates a local tracking branch
+// first if b is a remote-tracking branch.
+func (m Model) checkoutCmd(b git.Branch) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+
+		var err error
+		if b.Remote {
+			err = m.repo.CheckoutRemote(ctx, b.Name)
+		} else {
+			err = m.repo.Checkout(ctx, b.Name)
+		}
+
+		return refreshMsg{err: err}
+	}
+}
+
+// createBranchCmd creates and checks out a new branch from HEAD.
+func (m Model) createBranchCmd(name string) tea.Cmd {
+	return func() tea.Msg {
+		err := m.repo.CreateBranch(context.Background(), name)
+		return refreshMsg{err: err}
+	}
+}
+
+// deleteBranchCmd deletes a local branch.
+func (m Model) deleteBranchCmd(name string) tea.Cmd {
+	return func() tea.Msg {
+		err := m.repo.DeleteBranch(context.Background(), name, false)
+		return refreshMsg{err: err}
 	}
 }
