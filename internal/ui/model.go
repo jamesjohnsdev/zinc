@@ -34,7 +34,7 @@ type Model struct {
 
 	status   StatusPanel
 	branches BranchesPanel
-	commits  placeholderPanel
+	commits  LogPanel
 	stash    placeholderPanel
 	main     DiffPanel
 
@@ -55,7 +55,7 @@ func NewModel() Model {
 		repo:     git.New("."),
 		status:   NewStatusPanel(),
 		branches: NewBranchesPanel(),
-		commits:  placeholderPanel{title: "Commits", note: "not yet implemented"},
+		commits:  NewLogPanel(),
 		stash:    placeholderPanel{title: "Stash", note: "not yet implemented"},
 		main:     NewDiffPanel(),
 
@@ -66,7 +66,7 @@ func NewModel() Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.loadStatus, m.loadBranches)
+	return tea.Batch(m.loadStatus, m.loadBranches, m.loadLog)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -99,9 +99,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.main.SetContent(msg.title, content)
 		return m, nil
 
+	case logLoadedMsg:
+		if msg.err == nil {
+			m.commits.SetCommits(msg.commits)
+		} else {
+			m.err = msg.err
+		}
+		return m, nil
+
 	case refreshMsg:
 		m.err = msg.err
-		return m, tea.Batch(m.loadStatus, m.loadBranches, m.loadDiff)
+		return m, tea.Batch(m.loadStatus, m.loadBranches, m.loadLog, m.loadDiff)
 
 	case tea.KeyMsg:
 		if m.branchInput.Active() {
@@ -168,6 +176,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.loadDiff
 			case focusBranches:
 				m.branches.CursorUp()
+			case focusCommits:
+				m.commits.CursorUp()
 			}
 		case "down", "j":
 			switch m.focus {
@@ -176,13 +186,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.loadDiff
 			case focusBranches:
 				m.branches.CursorDown()
+			case focusCommits:
+				m.commits.CursorDown()
 			}
 		case "ctrl+u":
 			m.main.PageUp()
 		case "ctrl+d":
 			m.main.PageDown()
 		case "r":
-			return m, tea.Batch(m.loadStatus, m.loadBranches)
+			return m, tea.Batch(m.loadStatus, m.loadBranches, m.loadLog)
 		case " ":
 			if m.focus == focusFiles {
 				return m, m.toggleStaged
@@ -347,6 +359,17 @@ func (m Model) loadBranches() tea.Msg {
 	}
 
 	return branchesLoadedMsg{branches: append(local, remote...)}
+}
+
+// logLoadedMsg reports the result of refreshing the commit log.
+type logLoadedMsg struct {
+	commits []git.Commit
+	err     error
+}
+
+func (m Model) loadLog() tea.Msg {
+	commits, err := m.repo.Log(context.Background(), 200)
+	return logLoadedMsg{commits: commits, err: err}
 }
 
 // diffLoadedMsg reports the result of loading the diff for the currently
