@@ -3,6 +3,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -35,7 +36,7 @@ type Model struct {
 	status   StatusPanel
 	branches BranchesPanel
 	commits  LogPanel
-	stash    placeholderPanel
+	stash    StashPanel
 	main     DiffPanel
 
 	commitInput CommitInput
@@ -56,7 +57,7 @@ func NewModel() Model {
 		status:   NewStatusPanel(),
 		branches: NewBranchesPanel(),
 		commits:  NewLogPanel(),
-		stash:    placeholderPanel{title: "Stash", note: "not yet implemented"},
+		stash:    NewStashPanel(),
 		main:     NewDiffPanel(),
 
 		commitInput: NewCommitInput(),
@@ -66,7 +67,7 @@ func NewModel() Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.loadStatus, m.loadBranches, m.loadLog)
+	return tea.Batch(m.loadStatus, m.loadBranches, m.loadLog, m.loadStash)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -107,9 +108,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case stashLoadedMsg:
+		if msg.err == nil {
+			m.stash.SetStashes(msg.stashes)
+		} else {
+			m.err = msg.err
+		}
+		return m, nil
+
 	case refreshMsg:
 		m.err = msg.err
-		return m, tea.Batch(m.loadStatus, m.loadBranches, m.loadLog, m.loadDiff)
+		return m, tea.Batch(m.loadStatus, m.loadBranches, m.loadLog, m.loadStash, m.loadDiff)
 
 	case tea.KeyMsg:
 		if m.branchInput.Active() {
@@ -178,6 +187,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.branches.CursorUp()
 			case focusCommits:
 				m.commits.CursorUp()
+			case focusStash:
+				m.stash.CursorUp()
 			}
 		case "down", "j":
 			switch m.focus {
@@ -188,13 +199,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.branches.CursorDown()
 			case focusCommits:
 				m.commits.CursorDown()
+			case focusStash:
+				m.stash.CursorDown()
 			}
 		case "ctrl+u":
 			m.main.PageUp()
 		case "ctrl+d":
 			m.main.PageDown()
 		case "r":
-			return m, tea.Batch(m.loadStatus, m.loadBranches, m.loadLog)
+			return m, tea.Batch(m.loadStatus, m.loadBranches, m.loadLog, m.loadStash)
 		case " ":
 			if m.focus == focusFiles {
 				return m, m.toggleStaged
@@ -220,10 +233,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, textinput.Blink
 			}
 		case "d":
-			if m.focus == focusBranches {
+			switch m.focus {
+			case focusBranches:
 				if b, ok := m.branches.Selected(); ok && !b.Remote && !b.Current {
 					m.confirm.Open("Delete branch '" + b.Name + "'?")
 					m.pendingConfirm = m.deleteBranchCmd(b.Name)
+				}
+			case focusStash:
+				if s, ok := m.stash.Selected(); ok {
+					m.confirm.Open(fmt.Sprintf("Drop stash@{%d}?", s.Index))
+					m.pendingConfirm = m.stashDropCmd(s.Index)
+				}
+			}
+		case "s":
+			if m.focus == focusFiles {
+				return m, m.stashPushCmd
+			}
+		case "p":
+			if m.focus == focusStash {
+				if s, ok := m.stash.Selected(); ok {
+					return m, m.stashPopCmd(s.Index)
 				}
 			}
 		}
@@ -274,7 +303,9 @@ func (m Model) View() string {
 			keyStyle.Render("c") + " " + helpDescStyle.Render("commit") + "  " +
 			keyStyle.Render("enter") + " " + helpDescStyle.Render("checkout branch") + "  " +
 			keyStyle.Render("n") + " " + helpDescStyle.Render("new branch") + "  " +
-			keyStyle.Render("d") + " " + helpDescStyle.Render("delete branch") + "  " +
+			keyStyle.Render("d") + " " + helpDescStyle.Render("delete branch/drop stash") + "  " +
+			keyStyle.Render("s") + " " + helpDescStyle.Render("stash") + "  " +
+			keyStyle.Render("p") + " " + helpDescStyle.Render("pop stash") + "  " +
 			keyStyle.Render("^u/^d") + " " + helpDescStyle.Render("scroll diff") + "  " +
 			keyStyle.Render("r") + " " + helpDescStyle.Render("refresh") + "  " +
 			keyStyle.Render("q") + " " + helpDescStyle.Render("quit"),
@@ -451,6 +482,39 @@ func (m Model) createBranchCmd(name string) tea.Cmd {
 func (m Model) deleteBranchCmd(name string) tea.Cmd {
 	return func() tea.Msg {
 		err := m.repo.DeleteBranch(context.Background(), name, false)
+		return refreshMsg{err: err}
+	}
+}
+
+// stashLoadedMsg reports the result of refreshing the stash list.
+type stashLoadedMsg struct {
+	stashes []git.Stash
+	err     error
+}
+
+func (m Model) loadStash() tea.Msg {
+	stashes, err := m.repo.StashList(context.Background())
+	return stashLoadedMsg{stashes: stashes, err: err}
+}
+
+// stashPushCmd stashes all working tree changes, including untracked files.
+func (m Model) stashPushCmd() tea.Msg {
+	err := m.repo.StashPush(context.Background(), "", true)
+	return refreshMsg{err: err}
+}
+
+// stashPopCmd applies and removes the stash entry at index.
+func (m Model) stashPopCmd(index int) tea.Cmd {
+	return func() tea.Msg {
+		err := m.repo.StashPop(context.Background(), index)
+		return refreshMsg{err: err}
+	}
+}
+
+// stashDropCmd removes the stash entry at index without applying it.
+func (m Model) stashDropCmd(index int) tea.Cmd {
+	return func() tea.Msg {
+		err := m.repo.StashDrop(context.Background(), index)
 		return refreshMsg{err: err}
 	}
 }
