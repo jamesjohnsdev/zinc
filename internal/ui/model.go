@@ -295,21 +295,7 @@ func (m Model) View() string {
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, mainPanel)
 
-	help := statusBarStyle.Render(
-		keyStyle.Render("tab") + " " + helpDescStyle.Render("switch panel") + "  " +
-			keyStyle.Render("↑/↓") + " " + helpDescStyle.Render("navigate") + "  " +
-			keyStyle.Render("space") + " " + helpDescStyle.Render("stage/unstage") + "  " +
-			keyStyle.Render("a") + " " + helpDescStyle.Render("stage all") + "  " +
-			keyStyle.Render("c") + " " + helpDescStyle.Render("commit") + "  " +
-			keyStyle.Render("enter") + " " + helpDescStyle.Render("checkout branch") + "  " +
-			keyStyle.Render("n") + " " + helpDescStyle.Render("new branch") + "  " +
-			keyStyle.Render("d") + " " + helpDescStyle.Render("delete branch/drop stash") + "  " +
-			keyStyle.Render("s") + " " + helpDescStyle.Render("stash") + "  " +
-			keyStyle.Render("p") + " " + helpDescStyle.Render("pop stash") + "  " +
-			keyStyle.Render("^u/^d") + " " + helpDescStyle.Render("scroll diff") + "  " +
-			keyStyle.Render("r") + " " + helpDescStyle.Render("refresh") + "  " +
-			keyStyle.Render("q") + " " + helpDescStyle.Render("quit"),
-	)
+	help := m.helpBar()
 
 	parts := []string{title}
 	switch {
