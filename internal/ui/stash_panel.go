@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -11,8 +10,8 @@ import (
 
 // StashPanel lists the repository's stash entries.
 type StashPanel struct {
+	listCursor
 	stashes []git.Stash
-	cursor  int
 }
 
 // NewStashPanel constructs an empty StashPanel.
@@ -23,9 +22,7 @@ func NewStashPanel() StashPanel {
 // SetStashes replaces the panel's stash list, clamping the cursor.
 func (p *StashPanel) SetStashes(stashes []git.Stash) {
 	p.stashes = stashes
-	if p.cursor >= len(stashes) {
-		p.cursor = max(len(stashes)-1, 0)
-	}
+	p.setLength(len(stashes))
 }
 
 // Selected returns the stash entry under the cursor, if any.
@@ -36,28 +33,9 @@ func (p StashPanel) Selected() (git.Stash, bool) {
 	return p.stashes[p.cursor], true
 }
 
-// CursorUp moves the selection up one stash entry.
-func (p *StashPanel) CursorUp() {
-	if p.cursor > 0 {
-		p.cursor--
-	}
-}
-
-// CursorDown moves the selection down one stash entry.
-func (p *StashPanel) CursorDown() {
-	if p.cursor < len(p.stashes)-1 {
-		p.cursor++
-	}
-}
-
 // View renders the panel at the given size.
 func (p StashPanel) View(width, height int, focused bool) string {
-	style := panelStyle
-	if focused {
-		style = panelFocusedStyle
-	}
-
-	title := panelTitleStyle.Render(fmt.Sprintf("Stash (%d)", len(p.stashes)))
+	title := fmt.Sprintf("Stash (%d)", len(p.stashes))
 
 	var lines []string
 	if len(p.stashes) == 0 {
@@ -72,7 +50,5 @@ func (p StashPanel) View(width, height int, focused bool) string {
 		lines = append(lines, cursor+idx+" "+s.Message)
 	}
 
-	content := lipgloss.JoinVertical(lipgloss.Left, title, strings.Join(lines, "\n"))
-
-	return style.Width(width).Height(height).Render(content)
+	return renderPanel(width, height, focused, title, lines)
 }

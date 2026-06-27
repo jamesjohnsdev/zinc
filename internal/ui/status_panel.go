@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -12,8 +11,8 @@ import (
 // StatusPanel renders the working tree file list: staged, unstaged,
 // unmerged, and untracked paths.
 type StatusPanel struct {
-	files  []git.FileStatus
-	cursor int
+	listCursor
+	files []git.FileStatus
 }
 
 // NewStatusPanel constructs an empty StatusPanel.
@@ -24,9 +23,7 @@ func NewStatusPanel() StatusPanel {
 // SetFiles replaces the panel's file list, clamping the cursor if needed.
 func (p *StatusPanel) SetFiles(files []git.FileStatus) {
 	p.files = files
-	if p.cursor >= len(files) {
-		p.cursor = max(len(files)-1, 0)
-	}
+	p.setLength(len(files))
 }
 
 // Selected returns the file under the cursor, if any.
@@ -37,28 +34,9 @@ func (p StatusPanel) Selected() (git.FileStatus, bool) {
 	return p.files[p.cursor], true
 }
 
-// CursorUp moves the selection up one file.
-func (p *StatusPanel) CursorUp() {
-	if p.cursor > 0 {
-		p.cursor--
-	}
-}
-
-// CursorDown moves the selection down one file.
-func (p *StatusPanel) CursorDown() {
-	if p.cursor < len(p.files)-1 {
-		p.cursor++
-	}
-}
-
 // View renders the panel at the given size.
 func (p StatusPanel) View(width, height int, focused bool) string {
-	style := panelStyle
-	if focused {
-		style = panelFocusedStyle
-	}
-
-	title := panelTitleStyle.Render(fmt.Sprintf("Files (%d)", len(p.files)))
+	title := fmt.Sprintf("Files (%d)", len(p.files))
 
 	var lines []string
 	if len(p.files) == 0 {
@@ -72,9 +50,7 @@ func (p StatusPanel) View(width, height int, focused bool) string {
 		lines = append(lines, cursor+formatFileLine(f))
 	}
 
-	content := lipgloss.JoinVertical(lipgloss.Left, title, strings.Join(lines, "\n"))
-
-	return style.Width(width).Height(height).Render(content)
+	return renderPanel(width, height, focused, title, lines)
 }
 
 func formatFileLine(f git.FileStatus) string {

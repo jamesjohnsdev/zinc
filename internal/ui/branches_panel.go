@@ -11,8 +11,8 @@ import (
 
 // BranchesPanel lists local and remote-tracking branches.
 type BranchesPanel struct {
+	listCursor
 	branches []git.Branch
-	cursor   int
 }
 
 // NewBranchesPanel constructs an empty BranchesPanel.
@@ -23,9 +23,7 @@ func NewBranchesPanel() BranchesPanel {
 // SetBranches replaces the panel's branch list, clamping the cursor.
 func (p *BranchesPanel) SetBranches(branches []git.Branch) {
 	p.branches = branches
-	if p.cursor >= len(branches) {
-		p.cursor = max(len(branches)-1, 0)
-	}
+	p.setLength(len(branches))
 }
 
 // Selected returns the branch under the cursor, if any.
@@ -36,28 +34,9 @@ func (p BranchesPanel) Selected() (git.Branch, bool) {
 	return p.branches[p.cursor], true
 }
 
-// CursorUp moves the selection up one branch.
-func (p *BranchesPanel) CursorUp() {
-	if p.cursor > 0 {
-		p.cursor--
-	}
-}
-
-// CursorDown moves the selection down one branch.
-func (p *BranchesPanel) CursorDown() {
-	if p.cursor < len(p.branches)-1 {
-		p.cursor++
-	}
-}
-
 // View renders the panel at the given size.
 func (p BranchesPanel) View(width, height int, focused bool) string {
-	style := panelStyle
-	if focused {
-		style = panelFocusedStyle
-	}
-
-	title := panelTitleStyle.Render(fmt.Sprintf("Branches (%d)", len(p.branches)))
+	title := fmt.Sprintf("Branches (%d)", len(p.branches))
 
 	var lines []string
 	if len(p.branches) == 0 {
@@ -71,9 +50,7 @@ func (p BranchesPanel) View(width, height int, focused bool) string {
 		lines = append(lines, cursor+formatBranchLine(b))
 	}
 
-	content := lipgloss.JoinVertical(lipgloss.Left, title, strings.Join(lines, "\n"))
-
-	return style.Width(width).Height(height).Render(content)
+	return renderPanel(width, height, focused, title, lines)
 }
 
 func formatBranchLine(b git.Branch) string {
