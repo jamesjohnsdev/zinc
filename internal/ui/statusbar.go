@@ -21,6 +21,7 @@ var panelHelp = map[focusIndex][]helpEntry{
 		{"a", "stage all"},
 		{"c", "commit"},
 		{"s", "stash"},
+		{"D", "discard"},
 		{"^u/^d", "scroll diff"},
 	},
 	focusBranches: {

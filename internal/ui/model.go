@@ -249,6 +249,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.focus == focusFiles {
 				return m, m.stashPushCmd
 			}
+		case "D":
+			if m.focus == focusFiles {
+				if f, ok := m.status.Selected(); ok {
+					m.confirm.Open("Discard changes to '" + f.Path + "'?")
+					m.pendingConfirm = m.discardCmd(f.Path, f.Untracked)
+				}
+			}
 		case "p":
 			if m.focus == focusStash {
 				if s, ok := m.stash.Selected(); ok {
@@ -501,6 +508,14 @@ func (m Model) stashPopCmd(index int) tea.Cmd {
 func (m Model) stashDropCmd(index int) tea.Cmd {
 	return func() tea.Msg {
 		err := m.repo.StashDrop(context.Background(), index)
+		return refreshMsg{err: err}
+	}
+}
+
+// discardCmd reverts path's working tree changes.
+func (m Model) discardCmd(path string, untracked bool) tea.Cmd {
+	return func() tea.Msg {
+		err := m.repo.Discard(context.Background(), path, untracked)
 		return refreshMsg{err: err}
 	}
 }
