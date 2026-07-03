@@ -30,6 +30,10 @@ func (r *Runner) Log(ctx context.Context, limit int) ([]Commit, error) {
 		return nil, err
 	}
 
+	return parseLog(out), nil
+}
+
+func parseLog(out string) []Commit {
 	var commits []Commit
 	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 		if line == "" {
@@ -52,5 +56,5 @@ func (r *Runner) Log(ctx context.Context, limit int) ([]Commit, error) {
 		})
 	}
 
-	return commits, nil
+	return commits
 }
