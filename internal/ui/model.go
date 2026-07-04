@@ -75,6 +75,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+
+		bodyWidth := max(m.width-2, 0)
+		bodyHeight := max(m.height-6, 0)
+		sidebarWidth := bodyWidth / 3
+		mainWidth := max(bodyWidth-sidebarWidth, 0)
+		m.main.SetSize(mainWidth, bodyHeight)
+
 		return m, nil
 
 	case statusLoadedMsg:
