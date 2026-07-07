@@ -92,10 +92,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.loadDiff
 
 	case branchesLoadedMsg:
+		m.err = msg.err
 		if msg.err == nil {
 			m.branches.SetBranches(msg.branches)
-		} else {
-			m.err = msg.err
 		}
 		return m, nil
 
@@ -108,18 +107,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case logLoadedMsg:
+		m.err = msg.err
 		if msg.err == nil {
 			m.commits.SetCommits(msg.commits)
-		} else {
-			m.err = msg.err
 		}
 		return m, nil
 
 	case stashLoadedMsg:
+		m.err = msg.err
 		if msg.err == nil {
 			m.stash.SetStashes(msg.stashes)
-		} else {
-			m.err = msg.err
 		}
 		return m, nil
 
@@ -287,19 +284,9 @@ func (m Model) View() string {
 	panelHeight := bodyHeight / int(numPanels)
 	lastPanelHeight := bodyHeight - panelHeight*(int(numPanels)-1)
 
-	var filesView string
-	if m.err != nil {
-		filesView = panelFocusedStyle.
-			Width(sidebarWidth).
-			Height(panelHeight).
-			Render("error: " + m.err.Error())
-	} else {
-		filesView = m.status.View(sidebarWidth, panelHeight, m.focus == focusFiles)
-	}
-
 	sidebar := lipgloss.JoinVertical(
 		lipgloss.Left,
-		filesView,
+		m.status.View(sidebarWidth, panelHeight, m.focus == focusFiles),
 		m.branches.View(sidebarWidth, panelHeight, m.focus == focusBranches),
 		m.commits.View(sidebarWidth, panelHeight, m.focus == focusCommits),
 		m.stash.View(sidebarWidth, lastPanelHeight, m.focus == focusStash),
@@ -312,6 +299,9 @@ func (m Model) View() string {
 	help := m.helpBar()
 
 	parts := []string{title}
+	if m.err != nil {
+		parts = append(parts, errorToastStyle.Render("✗ "+m.err.Error()))
+	}
 	switch {
 	case m.commitInput.Active():
 		parts = append(parts, m.commitInput.View(bodyWidth))

@@ -39,4 +39,8 @@ var (
 
 	helpDescStyle = lipgloss.NewStyle().
 			Foreground(colorSubtle)
+
+	errorToastStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(colorBad)
 )
