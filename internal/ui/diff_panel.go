@@ -37,12 +37,12 @@ func (p *DiffPanel) SetSize(width, height int) {
 
 // PageUp scrolls the diff up by a viewport page.
 func (p *DiffPanel) PageUp() {
-	p.vp.ViewUp()
+	p.vp.PageUp()
 }
 
 // PageDown scrolls the diff down by a viewport page.
 func (p *DiffPanel) PageDown() {
-	p.vp.ViewDown()
+	p.vp.PageDown()
 }
 
 // View renders the panel at the given size.
