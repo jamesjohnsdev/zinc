@@ -50,7 +50,7 @@ func (p BranchesPanel) View(width, height int, focused bool) string {
 		lines = append(lines, cursor+formatBranchLine(b))
 	}
 
-	return renderPanel(width, height, focused, title, lines)
+	return renderPanel(width, height, focused, title, lines, p.cursor)
 }
 
 func formatBranchLine(b git.Branch) string {

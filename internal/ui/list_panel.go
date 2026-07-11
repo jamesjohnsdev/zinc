@@ -37,14 +37,45 @@ func (c *listCursor) CursorDown() {
 
 // renderPanel wraps a titled list of already-formatted lines in the
 // standard sidebar panel chrome: a bordered box, dimmed when unfocused and
-// accented when focused.
-func renderPanel(width, height int, focused bool, title string, lines []string) string {
+// accented when focused. lipgloss's Height only pads content that's
+// shorter than the box, it never crops content that's taller — so with
+// more lines than fit, renderPanel windows them around cursor itself
+// rather than dumping every line and letting the box overflow.
+func renderPanel(width, height int, focused bool, title string, lines []string, cursor int) string {
 	style := panelStyle
 	if focused {
 		style = panelFocusedStyle
 	}
 
-	content := lipgloss.JoinVertical(lipgloss.Left, panelTitleStyle.Render(title), strings.Join(lines, "\n"))
+	visibleRows := max(height-1, 0) // minus the title line
+	visible := windowLines(lines, cursor, visibleRows)
+
+	parts := []string{panelTitleStyle.Render(title)}
+	if len(visible) > 0 {
+		parts = append(parts, strings.Join(visible, "\n"))
+	}
+	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
 
 	return style.Width(width).Height(height).Render(content)
+}
+
+// windowLines returns at most n consecutive lines from lines, scrolled so
+// that index cursor stays visible (centered where possible).
+func windowLines(lines []string, cursor, n int) []string {
+	if n <= 0 {
+		return nil
+	}
+	if len(lines) <= n {
+		return lines
+	}
+
+	start := cursor - n/2
+	if start < 0 {
+		start = 0
+	}
+	if start+n > len(lines) {
+		start = len(lines) - n
+	}
+
+	return lines[start : start+n]
 }

@@ -76,11 +76,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
-		bodyWidth := max(m.width-2, 0)
-		bodyHeight := max(m.height-6, 0)
-		sidebarWidth := bodyWidth / 3
-		mainWidth := max(bodyWidth-sidebarWidth, 0)
-		m.main.SetSize(mainWidth, bodyHeight)
+		l := m.layout()
+		m.main.SetSize(l.mainWidth, l.mainHeight)
 
 		return m, nil
 
@@ -272,44 +269,90 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) View() string {
-	title := titleStyle.Render("zinc")
+// borderRows is the number of rows a bordered panel box adds beyond its
+// content: one for the top border, one for the bottom. Panels use
+// Padding(0, 1) so padding contributes no additional rows.
+const borderRows = 2
 
+// uiLayout holds the computed dimensions for one frame, plus the
+// already-rendered fixed-height chrome (title, optional error toast,
+// optional prompt/confirm overlay, help bar) that everything else's size is
+// measured against. Both View and the resize handler build this the same
+// way so their numbers can never drift apart.
+type uiLayout struct {
+	sidebarWidth    int
+	mainWidth       int
+	panelHeight     int
+	lastPanelHeight int
+	mainHeight      int
+	chrome          []string // title, [toast], [overlay], help — in render order
+}
+
+func (m Model) layout() uiLayout {
 	bodyWidth := max(m.width-2, 0)
-	bodyHeight := max(m.height-6, 0)
+
+	chrome := []string{titleStyle.Render("zinc")}
+	if m.err != nil {
+		chrome = append(chrome, errorToastStyle.Render("✗ "+m.err.Error()))
+	}
+	switch {
+	case m.commitInput.Active():
+		chrome = append(chrome, m.commitInput.View(bodyWidth))
+	case m.branchInput.Active():
+		chrome = append(chrome, m.branchInput.View(bodyWidth))
+	case m.confirm.Active():
+		chrome = append(chrome, m.confirm.View(bodyWidth))
+	}
+	chrome = append(chrome, m.helpBar())
+
+	chromeHeight := 0
+	for _, s := range chrome {
+		chromeHeight += lipgloss.Height(s)
+	}
+
+	bodyHeight := max(m.height-chromeHeight, 0)
 
 	sidebarWidth := bodyWidth / 3
 	mainWidth := max(bodyWidth-sidebarWidth, 0)
 
-	panelHeight := bodyHeight / int(numPanels)
-	lastPanelHeight := bodyHeight - panelHeight*(int(numPanels)-1)
+	// Each sidebar panel and the main panel are bordered boxes: their total
+	// rendered height is content height + borderRows. Solve for content
+	// heights so the rendered totals actually fit in bodyHeight.
+	sidebarContent := max(bodyHeight-borderRows*int(numPanels), 0)
+	panelHeight := sidebarContent / int(numPanels)
+	lastPanelHeight := sidebarContent - panelHeight*(int(numPanels)-1)
+
+	mainHeight := max(bodyHeight-borderRows, 0)
+
+	return uiLayout{
+		sidebarWidth:    sidebarWidth,
+		mainWidth:       mainWidth,
+		panelHeight:     panelHeight,
+		lastPanelHeight: lastPanelHeight,
+		mainHeight:      mainHeight,
+		chrome:          chrome,
+	}
+}
+
+func (m Model) View() string {
+	l := m.layout()
 
 	sidebar := lipgloss.JoinVertical(
 		lipgloss.Left,
-		m.status.View(sidebarWidth, panelHeight, m.focus == focusFiles),
-		m.branches.View(sidebarWidth, panelHeight, m.focus == focusBranches),
-		m.commits.View(sidebarWidth, panelHeight, m.focus == focusCommits),
-		m.stash.View(sidebarWidth, lastPanelHeight, m.focus == focusStash),
+		m.status.View(l.sidebarWidth, l.panelHeight, m.focus == focusFiles),
+		m.branches.View(l.sidebarWidth, l.panelHeight, m.focus == focusBranches),
+		m.commits.View(l.sidebarWidth, l.panelHeight, m.focus == focusCommits),
+		m.stash.View(l.sidebarWidth, l.lastPanelHeight, m.focus == focusStash),
 	)
 
-	mainPanel := m.main.View(mainWidth, bodyHeight, false)
+	mainPanel := m.main.View(l.mainWidth, l.mainHeight, false)
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, mainPanel)
 
-	help := m.helpBar()
+	help := l.chrome[len(l.chrome)-1]
 
-	parts := []string{title}
-	if m.err != nil {
-		parts = append(parts, errorToastStyle.Render("✗ "+m.err.Error()))
-	}
-	switch {
-	case m.commitInput.Active():
-		parts = append(parts, m.commitInput.View(bodyWidth))
-	case m.branchInput.Active():
-		parts = append(parts, m.branchInput.View(bodyWidth))
-	case m.confirm.Active():
-		parts = append(parts, m.confirm.View(bodyWidth))
-	}
+	var parts []string
+	parts = append(parts, l.chrome[:len(l.chrome)-1]...) // title, [toast], [overlay]
 	parts = append(parts, body, help)
 
 	return lipgloss.JoinVertical(lipgloss.Left, parts...)

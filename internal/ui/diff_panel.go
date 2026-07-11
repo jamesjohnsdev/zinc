@@ -26,13 +26,15 @@ func (p *DiffPanel) SetContent(title, diff string) {
 	p.vp.GotoTop()
 }
 
-// SetSize sets the inner viewport's dimensions from the panel's outer box
-// size, accounting for the border and padding renderPanel-style panels add.
-// It must be called (typically on tea.WindowSizeMsg) for PageUp/PageDown to
-// scroll by the correct amount.
+// SetSize sets the inner viewport's dimensions from the content width/
+// height that will be passed to View. lipgloss's Width/Height already
+// include padding (border is applied after, separately), so only the
+// panel's own title line needs to be subtracted here. It must be called
+// (typically on tea.WindowSizeMsg) for PageUp/PageDown to scroll by the
+// correct amount and for the diff to fill, rather than overflow, its box.
 func (p *DiffPanel) SetSize(width, height int) {
-	p.vp.Width = max(width-4, 0)
-	p.vp.Height = max(height-3, 0)
+	p.vp.Width = max(width-2, 0)   // panelStyle's Padding(0, 1): 1 col each side
+	p.vp.Height = max(height-1, 0) // the title line
 }
 
 // PageUp scrolls the diff up by a viewport page.

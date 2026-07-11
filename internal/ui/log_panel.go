@@ -50,5 +50,5 @@ func (p LogPanel) View(width, height int, focused bool) string {
 		lines = append(lines, cursor+hash+" "+c.Subject)
 	}
 
-	return renderPanel(width, height, focused, title, lines)
+	return renderPanel(width, height, focused, title, lines, p.cursor)
 }
