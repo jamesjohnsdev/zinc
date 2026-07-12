@@ -179,6 +179,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focus = (m.focus + 1) % numPanels
 		case "shift+tab":
 			m.focus = (m.focus - 1 + numPanels) % numPanels
+		case "1":
+			m.focus = focusFiles
+		case "2":
+			m.focus = focusBranches
+		case "3":
+			m.focus = focusCommits
+		case "4":
+			m.focus = focusStash
 		case "up", "k":
 			switch m.focus {
 			case focusFiles:

@@ -10,6 +10,7 @@ type helpEntry struct {
 
 var globalHelp = []helpEntry{
 	{"tab", "switch panel"},
+	{"1-4", "jump to panel"},
 	{"↑/↓", "navigate"},
 	{"r", "refresh"},
 	{"q", "quit"},
