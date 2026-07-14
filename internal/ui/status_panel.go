@@ -50,7 +50,7 @@ func (p StatusPanel) View(width, height int, focused bool) string {
 		lines = append(lines, cursor+formatFileLine(f))
 	}
 
-	return renderPanel(width, height, focused, title, lines, p.cursor)
+	return renderPanel(width, height, focused, 1, title, lines, p.cursor)
 }
 
 func formatFileLine(f git.FileStatus) string {

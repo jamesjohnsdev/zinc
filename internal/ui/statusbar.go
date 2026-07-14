@@ -47,10 +47,11 @@ var confirmHelp = []helpEntry{
 	{"n/esc", "cancel"},
 }
 
-// helpBar renders the status bar's keybinding hints for the model's
-// current mode: an open prompt, an open confirm dialog, or the normal
-// per-panel keymap layered under the global one.
-func (m Model) helpBar() string {
+// helpBar renders the status bar's keybinding hints, as keycap-style
+// chips, for the model's current mode: an open prompt, an open confirm
+// dialog, or the normal per-panel keymap layered under the global one. It
+// spans the full given width as a solid strip, matching the header bar.
+func (m Model) helpBar(width int) string {
 	var entries []helpEntry
 
 	switch {
@@ -65,8 +66,8 @@ func (m Model) helpBar() string {
 
 	parts := make([]string, len(entries))
 	for i, e := range entries {
-		parts[i] = keyStyle.Render(e.key) + " " + helpDescStyle.Render(e.desc)
+		parts[i] = keyStyle.Render(e.key) + helpDescStyle.Render(" "+e.desc+" ")
 	}
 
-	return statusBarStyle.Render(strings.Join(parts, "  "))
+	return statusBarStyle.Width(width).Render(strings.Join(parts, ""))
 }

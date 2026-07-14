@@ -2,8 +2,10 @@ package ui
 
 import "github.com/charmbracelet/lipgloss"
 
-// Theme colors, loosely inspired by lazygit's default palette.
+// Theme colors: a Tokyo Night-inspired palette.
 var (
+	colorBg     = lipgloss.Color("#1A1B26")
+	colorBgAlt  = lipgloss.Color("#24283B")
 	colorAccent = lipgloss.Color("#7AA2F7")
 	colorSubtle = lipgloss.Color("#565F89")
 	colorText   = lipgloss.Color("#C0CAF5")
@@ -13,33 +15,55 @@ var (
 )
 
 var (
-	titleStyle = lipgloss.NewStyle().
+	// headerStyle is the full-width app title bar.
+	headerStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(colorAccent)
+			Foreground(colorBg).
+			Background(colorAccent)
 
 	panelStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(colorSubtle).
 			Padding(0, 1)
 
-	panelFocusedStyle = panelStyle.
-				BorderForeground(colorAccent)
+	panelFocusedStyle = lipgloss.NewStyle().
+				Border(lipgloss.ThickBorder()).
+				BorderForeground(colorAccent).
+				Padding(0, 1)
 
 	panelTitleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(colorText)
 
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(colorSubtle)
+	// panelNumberStyle renders a panel's jump-shortcut digit as a small
+	// badge ahead of its title.
+	panelNumberStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(colorBg).
+				Background(colorSubtle).
+				Padding(0, 1)
 
+	panelNumberFocusedStyle = panelNumberStyle.
+				Background(colorAccent)
+
+	// statusBarStyle is the full-width help bar background strip.
+	statusBarStyle = lipgloss.NewStyle().
+			Background(colorBgAlt)
+
+	// keyStyle renders a single keybinding as a keycap-style chip.
 	keyStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(colorAccent)
+			Foreground(colorBg).
+			Background(colorAccent).
+			Padding(0, 1)
 
 	helpDescStyle = lipgloss.NewStyle().
-			Foreground(colorSubtle)
+			Foreground(colorSubtle).
+			Background(colorBgAlt)
 
 	errorToastStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(colorBad)
+			Foreground(colorBg).
+			Background(colorBad).
+			Padding(0, 1)
 )

@@ -299,7 +299,7 @@ type uiLayout struct {
 func (m Model) layout() uiLayout {
 	bodyWidth := max(m.width-2, 0)
 
-	chrome := []string{titleStyle.Render("zinc")}
+	chrome := []string{m.headerBar()}
 	if m.err != nil {
 		chrome = append(chrome, errorToastStyle.Render("✗ "+m.err.Error()))
 	}
@@ -311,7 +311,7 @@ func (m Model) layout() uiLayout {
 	case m.confirm.Active():
 		chrome = append(chrome, m.confirm.View(bodyWidth))
 	}
-	chrome = append(chrome, m.helpBar())
+	chrome = append(chrome, m.helpBar(m.width))
 
 	chromeHeight := 0
 	for _, s := range chrome {
@@ -370,6 +370,17 @@ func (m Model) View() string {
 type statusLoadedMsg struct {
 	files []git.FileStatus
 	err   error
+}
+
+// headerBar renders the full-width app title bar, including the current
+// branch name once it's known.
+func (m Model) headerBar() string {
+	header := " zinc "
+	if name, ok := m.branches.Current(); ok {
+		header += "· " + name + " "
+	}
+
+	return headerStyle.Width(m.width).Render(header)
 }
 
 func (m Model) loadStatus() tea.Msg {

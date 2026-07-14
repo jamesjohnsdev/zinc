@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -37,20 +38,25 @@ func (c *listCursor) CursorDown() {
 
 // renderPanel wraps a titled list of already-formatted lines in the
 // standard sidebar panel chrome: a bordered box, dimmed when unfocused and
-// accented when focused. lipgloss's Height only pads content that's
+// accented when focused, headed by a number badge (matching that panel's
+// jump shortcut) and the title. lipgloss's Height only pads content that's
 // shorter than the box, it never crops content that's taller — so with
 // more lines than fit, renderPanel windows them around cursor itself
 // rather than dumping every line and letting the box overflow.
-func renderPanel(width, height int, focused bool, title string, lines []string, cursor int) string {
+func renderPanel(width, height int, focused bool, number int, title string, lines []string, cursor int) string {
 	style := panelStyle
+	numberStyle := panelNumberStyle
 	if focused {
 		style = panelFocusedStyle
+		numberStyle = panelNumberFocusedStyle
 	}
 
 	visibleRows := max(height-1, 0) // minus the title line
 	visible := windowLines(lines, cursor, visibleRows)
 
-	parts := []string{panelTitleStyle.Render(title)}
+	header := numberStyle.Render(fmt.Sprintf("%d", number)) + " " + panelTitleStyle.Render(title)
+
+	parts := []string{header}
 	if len(visible) > 0 {
 		parts = append(parts, strings.Join(visible, "\n"))
 	}

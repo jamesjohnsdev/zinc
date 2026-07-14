@@ -50,5 +50,5 @@ func (p StashPanel) View(width, height int, focused bool) string {
 		lines = append(lines, cursor+idx+" "+s.Message)
 	}
 
-	return renderPanel(width, height, focused, title, lines, p.cursor)
+	return renderPanel(width, height, focused, 4, title, lines, p.cursor)
 }

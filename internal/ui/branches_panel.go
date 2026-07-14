@@ -34,6 +34,16 @@ func (p BranchesPanel) Selected() (git.Branch, bool) {
 	return p.branches[p.cursor], true
 }
 
+// Current returns the name of the currently checked-out branch, if known.
+func (p BranchesPanel) Current() (string, bool) {
+	for _, b := range p.branches {
+		if b.Current {
+			return b.Name, true
+		}
+	}
+	return "", false
+}
+
 // View renders the panel at the given size.
 func (p BranchesPanel) View(width, height int, focused bool) string {
 	title := fmt.Sprintf("Branches (%d)", len(p.branches))
@@ -50,7 +60,7 @@ func (p BranchesPanel) View(width, height int, focused bool) string {
 		lines = append(lines, cursor+formatBranchLine(b))
 	}
 
-	return renderPanel(width, height, focused, title, lines, p.cursor)
+	return renderPanel(width, height, focused, 2, title, lines, p.cursor)
 }
 
 func formatBranchLine(b git.Branch) string {
