@@ -39,8 +39,8 @@ type Model struct {
 	stash    StashPanel
 	main     DiffPanel
 
-	commitInput CommitInput
-	branchInput BranchInput
+	commitInput TextPrompt
+	branchInput TextPrompt
 	confirm     ConfirmDialog
 
 	// pendingConfirm runs when the open confirm dialog is accepted with 'y'.
@@ -60,8 +60,8 @@ func NewModel() Model {
 		stash:    NewStashPanel(),
 		main:     NewDiffPanel(),
 
-		commitInput: NewCommitInput(),
-		branchInput: NewBranchInput(),
+		commitInput: NewTextPrompt("Commit message", "commit message"),
+		branchInput: NewTextPrompt("New branch", "new branch name"),
 		confirm:     NewConfirmDialog(),
 	}
 }
