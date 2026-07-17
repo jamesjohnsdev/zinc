@@ -65,6 +65,23 @@ func renderPanel(width, height int, focused bool, number int, title string, line
 	return style.Width(width).Height(height).Render(content)
 }
 
+// borderRows is the number of rows a bordered panel box adds beyond its
+// content: one for the top border, one for the bottom. Panels use
+// Padding(0, 1) so padding contributes no additional rows.
+const borderRows = 2
+
+// splitPanelHeights divides total content rows among n stacked bordered
+// panels, each of which needs its own borderRows on top of its share of
+// the content — so naively dividing total by n would render taller than
+// total once borders are added. It returns the content height for each of
+// the first n-1 panels and for the last (which absorbs the remainder).
+func splitPanelHeights(total, n int) (each, last int) {
+	content := max(total-borderRows*n, 0)
+	each = content / n
+	last = content - each*(n-1)
+	return each, last
+}
+
 // windowLines returns at most n consecutive lines from lines, scrolled so
 // that index cursor stays visible (centered where possible).
 func windowLines(lines []string, cursor, n int) []string {

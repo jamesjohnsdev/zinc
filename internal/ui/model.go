@@ -277,11 +277,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// borderRows is the number of rows a bordered panel box adds beyond its
-// content: one for the top border, one for the bottom. Panels use
-// Padding(0, 1) so padding contributes no additional rows.
-const borderRows = 2
-
 // uiLayout holds the computed dimensions for one frame, plus the
 // already-rendered fixed-height chrome (title, optional error toast,
 // optional prompt/confirm overlay, help bar) that everything else's size is
@@ -323,13 +318,7 @@ func (m Model) layout() uiLayout {
 	sidebarWidth := bodyWidth / 3
 	mainWidth := max(bodyWidth-sidebarWidth, 0)
 
-	// Each sidebar panel and the main panel are bordered boxes: their total
-	// rendered height is content height + borderRows. Solve for content
-	// heights so the rendered totals actually fit in bodyHeight.
-	sidebarContent := max(bodyHeight-borderRows*int(numPanels), 0)
-	panelHeight := sidebarContent / int(numPanels)
-	lastPanelHeight := sidebarContent - panelHeight*(int(numPanels)-1)
-
+	panelHeight, lastPanelHeight := splitPanelHeights(bodyHeight, int(numPanels))
 	mainHeight := max(bodyHeight-borderRows, 0)
 
 	return uiLayout{
