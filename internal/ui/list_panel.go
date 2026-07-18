@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // listCursor is the cursor bookkeeping shared by every sidebar list panel.
@@ -51,14 +52,27 @@ func renderPanel(width, height int, focused bool, number int, title string, line
 		numberStyle = panelNumberFocusedStyle
 	}
 
+	// Content wider than the box would otherwise get word-wrapped by
+	// lipgloss's own Render, turning one logical line into two physical
+	// rows and silently invalidating the height budget windowLines/
+	// splitPanelHeights computed on a one-row-per-line assumption.
+	// Truncating instead keeps every line to exactly one row.
+	innerWidth := max(width-2, 0) // panelStyle's Padding(0, 1): 1 col each side
+
 	visibleRows := max(height-1, 0) // minus the title line
 	visible := windowLines(lines, cursor, visibleRows)
 
 	header := numberStyle.Render(fmt.Sprintf("%d", number)) + " " + panelTitleStyle.Render(title)
+	header = ansi.Truncate(header, innerWidth, "…")
+
+	truncated := make([]string, len(visible))
+	for i, l := range visible {
+		truncated[i] = ansi.Truncate(l, innerWidth, "…")
+	}
 
 	parts := []string{header}
-	if len(visible) > 0 {
-		parts = append(parts, strings.Join(visible, "\n"))
+	if len(truncated) > 0 {
+		parts = append(parts, strings.Join(truncated, "\n"))
 	}
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
 
