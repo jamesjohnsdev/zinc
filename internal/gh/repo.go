@@ -24,10 +24,11 @@ const repoViewFields = "name,nameWithOwner,owner,description,defaultBranchRef,is
 
 // ViewRepo returns summary information for repo, or the repository
 // resolved from the working directory's git remote if repo is empty.
+//
+// Unlike pr/issue/run subcommands, `gh repo view` takes the repository as a
+// positional argument rather than a --repo flag.
 func (r *Runner) ViewRepo(ctx context.Context, repo string) (Repo, error) {
-	args := append([]string{"repo", "view", "--json", repoViewFields}, repoArgs(repo)...)
-
-	out, err := r.run(ctx, args...)
+	out, err := r.run(ctx, viewRepoArgs(repo)...)
 	if err != nil {
 		return Repo{}, err
 	}
@@ -38,4 +39,15 @@ func (r *Runner) ViewRepo(ctx context.Context, repo string) (Repo, error) {
 	}
 
 	return rp, nil
+}
+
+// viewRepoArgs builds the argument list for `gh repo view`. Unlike pr/
+// issue/run subcommands, it takes the repository as a positional argument
+// rather than a --repo flag.
+func viewRepoArgs(repo string) []string {
+	args := []string{"repo", "view"}
+	if repo != "" {
+		args = append(args, repo)
+	}
+	return append(args, "--json", repoViewFields)
 }

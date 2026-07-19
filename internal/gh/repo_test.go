@@ -32,3 +32,28 @@ func TestRepoUnmarshal(t *testing.T) {
 		t.Errorf("StargazerCount = %d", repo.StargazerCount)
 	}
 }
+
+// TestViewRepoArgs guards against reintroducing a --repo flag: unlike pr/
+// issue/run subcommands, `gh repo view --repo X` fails with
+// "unknown flag: --repo" — the repo must be a positional argument.
+func TestViewRepoArgs(t *testing.T) {
+	got := viewRepoArgs("")
+	if len(got) < 2 || got[0] != "repo" || got[1] != "view" {
+		t.Fatalf("viewRepoArgs(\"\") = %v, want to start with [repo view]", got)
+	}
+	for _, a := range got {
+		if a == "--repo" {
+			t.Errorf("viewRepoArgs(\"\") = %v, must not contain --repo", got)
+		}
+	}
+
+	got = viewRepoArgs("owner/name")
+	if len(got) < 3 || got[2] != "owner/name" {
+		t.Fatalf("viewRepoArgs(\"owner/name\") = %v, want repo as the 3rd (positional) arg", got)
+	}
+	for _, a := range got {
+		if a == "--repo" {
+			t.Errorf("viewRepoArgs(\"owner/name\") = %v, must not contain --repo", got)
+		}
+	}
+}
