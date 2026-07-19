@@ -80,3 +80,10 @@ func (r *Runner) IssueComment(ctx context.Context, repo string, number int, body
 	_, err := r.run(ctx, args...)
 	return err
 }
+
+// IssueWeb opens an issue in the default web browser.
+func (r *Runner) IssueWeb(ctx context.Context, repo string, number int) error {
+	args := append([]string{"issue", "view", strconv.Itoa(number), "--web"}, repoArgs(repo)...)
+	_, err := r.run(ctx, args...)
+	return err
+}

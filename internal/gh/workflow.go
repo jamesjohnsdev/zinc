@@ -54,3 +54,10 @@ func (r *Runner) RunCancel(ctx context.Context, repo string, id int64) error {
 	_, err := r.run(ctx, args...)
 	return err
 }
+
+// RunWeb opens a workflow run in the default web browser.
+func (r *Runner) RunWeb(ctx context.Context, repo string, id int64) error {
+	args := append([]string{"run", "view", strconv.FormatInt(id, 10), "--web"}, repoArgs(repo)...)
+	_, err := r.run(ctx, args...)
+	return err
+}

@@ -23,13 +23,16 @@ func TestViewFitsTerminalHeight(t *testing.T) {
 	}
 
 	for _, sz := range sizes {
-		m := NewModel()
-		updated, _ := m.Update(tea.WindowSizeMsg{Width: sz.w, Height: sz.h})
-		m = updated.(Model)
+		for _, screen := range []screenID{screenGit, screenGitHub} {
+			m := NewModel()
+			m.screen = screen
+			updated, _ := m.Update(tea.WindowSizeMsg{Width: sz.w, Height: sz.h})
+			m = updated.(Model)
 
-		view := m.View()
-		if got := lipgloss.Height(view); got > sz.h {
-			t.Errorf("terminal %dx%d: rendered height %d exceeds terminal height", sz.w, sz.h, got)
+			view := m.View()
+			if got := lipgloss.Height(view); got > sz.h {
+				t.Errorf("screen %d, terminal %dx%d: rendered height %d exceeds terminal height", screen, sz.w, sz.h, got)
+			}
 		}
 	}
 }

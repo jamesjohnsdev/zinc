@@ -105,3 +105,10 @@ func (r *Runner) PRReopen(ctx context.Context, repo string, number int) error {
 	_, err := r.run(ctx, args...)
 	return err
 }
+
+// PRWeb opens a pull request in the default web browser.
+func (r *Runner) PRWeb(ctx context.Context, repo string, number int) error {
+	args := append([]string{"pr", "view", strconv.Itoa(number), "--web"}, repoArgs(repo)...)
+	_, err := r.run(ctx, args...)
+	return err
+}
