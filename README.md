@@ -6,9 +6,11 @@ and [Lipgloss](https://github.com/charmbracelet/lipgloss). Think
 sidebar/main-panel layout over the git CLI, driven entirely from the
 keyboard.
 
-This is the core git experience — status, staging, diffs, commits,
-branches, log, and stash. GitHub CLI integration for pull requests and
-Actions workflows is planned as a follow-up.
+Two screens, toggled with `g`:
+
+- **Git** — status, staging, diffs, commits, branches, log, and stash.
+- **GitHub** — pull requests, issues, and Actions workflow runs, via the
+  [`gh` CLI](https://cli.github.com).
 
 ## Install
 
@@ -16,12 +18,14 @@ Actions workflows is planned as a follow-up.
 go install github.com/jamesjohnsdev/zinc/cmd/zinc@latest
 ```
 
-Requires the `git` binary on `PATH`. Run `zinc` from inside (or below) any
-git repository.
+Requires the `git` binary on `PATH`. For the GitHub screen, the `gh`
+binary must also be installed and authenticated (`gh auth login`). Run
+`zinc` from inside (or below) any git repository.
 
 ## Layout
 
 ```
+Git screen:
 ┌─ Files ────────┐┌─ Diff ─────────────────┐
 │                ││                        │
 ├─ Branches ─────┤│                        │
@@ -30,10 +34,19 @@ git repository.
 │                ││                        │
 ├─ Stash ────────┤│                        │
 └────────────────┘└────────────────────────┘
+
+GitHub screen:
+┌─ Pull Requests ┐┌─ Detail ───────────────┐
+│                ││                        │
+├─ Issues ───────┤│                        │
+│                ││                        │
+├─ Workflow Runs ┤│                        │
+└────────────────┘└────────────────────────┘
 ```
 
-`tab` / `shift+tab` cycle focus between the four sidebar panels. The Diff
-panel on the right always reflects the file currently selected in Files.
+`tab` / `shift+tab` cycle focus between a screen's sidebar panels. The
+right-hand panel always reflects the item currently selected in the
+focused sidebar panel.
 
 ## Keybindings
 
@@ -41,6 +54,7 @@ panel on the right always reflects the file currently selected in Files.
 
 | Key       | Action              |
 | --------- | ------------------- |
+| `g`       | switch between the Git and GitHub screens |
 | `tab`     | switch panel focus   |
 | `shift+tab` | switch panel focus (reverse) |
 | `↑`/`k`, `↓`/`j` | move selection in the focused panel |
@@ -73,9 +87,35 @@ panel on the right always reflects the file currently selected in Files.
 | `p` | pop the selected stash entry     |
 | `d` | drop the selected stash entry (asks to confirm) |
 
-Prompts (commit message, new branch name) accept `enter` to submit and
-`esc` to cancel. Confirmation dialogs accept `y` to proceed and `n`/`esc`
-to cancel.
+**Pull Requests** (GitHub screen)
+
+| Key | Action                                          |
+| --- | ------------------------------------------------ |
+| `c` | check out the selected PR's branch locally        |
+| `m` | squash-merge the selected PR (asks to confirm)    |
+| `x` | close the selected open PR (asks to confirm)      |
+| `o` | open the selected PR in the browser               |
+
+**Issues** (GitHub screen)
+
+| Key | Action                                          |
+| --- | ------------------------------------------------ |
+| `x` | close (or reopen, if already closed) the selected issue — asks to confirm |
+| `C` | comment on the selected issue                     |
+| `o` | open the selected issue in the browser             |
+
+**Workflow Runs** (GitHub screen)
+
+| Key | Action                                          |
+| --- | ------------------------------------------------ |
+| `R` | rerun the selected workflow run                   |
+| `x` | cancel the selected in-progress run (asks to confirm) |
+| `o` | open the selected run in the browser               |
+
+Prompts (commit message, new branch name, issue comment) accept `enter`
+to submit and `esc` to cancel. Confirmation dialogs accept `y` to proceed
+and `n`/`esc` to cancel. GitHub-screen data is only fetched once you
+switch to that screen; `r` refreshes it.
 
 ## Development
 
